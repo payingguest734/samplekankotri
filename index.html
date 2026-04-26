@@ -1190,6 +1190,25 @@ async function updateGuestName() {
 // Call on page load
 window.addEventListener("DOMContentLoaded", updateGuestName);
 
+let audioUnlocked = false;
+
+async function unlockAudioPlayback() {
+  if (audioUnlocked) return;
+  const music = document.getElementById("backgroundMusic");
+  if (!music) return;
+  try {
+    // iOS Safari requires a user-gesture initiated play at least once.
+    music.volume = 0;
+    await music.play();
+    music.pause();
+    music.currentTime = 0;
+    music.volume = 1;
+    audioUnlocked = true;
+  } catch (e) {
+    // If this fails, iOS will keep blocking autoplay. User can tap again.
+  }
+}
+
 // Function to speak invitation with bride, groom, and host names
 async function speakInvitation() {
   // Get bride name and convert to Gujarati
@@ -1225,8 +1244,14 @@ async function speakInvitation() {
   utterance.rate = 0.85; // Elegant slow speed
   utterance.pitch = 1.0;
 
-  utterance.onend = () => {
-    document.getElementById("backgroundMusic").play();
+  utterance.onend = async () => {
+    const music = document.getElementById("backgroundMusic");
+    if (!music) return;
+    try {
+      await music.play();
+    } catch (e) {
+      // iOS can still block if audio wasn't unlocked on the click.
+    }
   };
 
   speechSynthesis.speak(utterance);
@@ -1237,7 +1262,9 @@ function openInvite(){
   const music = document.getElementById("backgroundMusic");
   music.currentTime = 0;
   
-  // Speak invitation first, then music will play after speech ends
+  // Unlock audio + speech only after user gesture (iPhone Safari requirement).
+  unlockAudioPlayback();
+  // Speak invitation first, then music will play after speech ends.
   speakInvitation();
 }
 </script>
